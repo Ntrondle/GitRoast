@@ -1,7 +1,7 @@
 # GitRoast design
 
 Date: 2026-09-26
-Status: draft, awaiting review
+Status: approved 2026-09-26, with the Von local picker added
 
 ## Goal
 
@@ -12,7 +12,7 @@ It runs on the owner's own hardware, with no GPU. It must cost almost nothing wh
 ### What the user decided
 
 - CPU-only hardware. A Raspberry Pi-class machine must be enough.
-- The meme picker is swappable. Jev, TypeSafe AI's hosted decision model, is the main picker. A local rule-based picker is the fallback. Sending PR metadata to TypeSafe is acceptable.
+- The meme picker is swappable. Jev, TypeSafe AI's hosted decision model, is the main picker. Von, an open-weights copy of Jev, can run on the device as a second picker. A local rule-based picker is the last fallback. Sending PR metadata to TypeSafe is acceptable.
 - GitHub reaches the bot through Cloudflare Tunnel. No router ports are opened.
 - Meme images are rendered by memegen.link. The bot only builds URLs. Captions are sent to memegen.link, which is acceptable.
 - The bot is written in TypeScript with Probot and runs as a long-lived systemd service.
@@ -30,7 +30,7 @@ It runs on the owner's own hardware, with no GPU. It must cost almost nothing wh
 - Billing, quotas or per-repo meme limits.
 - A web dashboard or gallery.
 - Reacting to events other than a PR being opened, reopened or marked ready for review.
-- A local model picker. The picker interface allows adding one later. See "Future: local model picker".
+- Running Von on a Raspberry Pi with less than 4 GB of memory. See "Local model picker: Von".
 
 ## Architecture
 
@@ -40,7 +40,7 @@ GitHub ──webhook──> Cloudflare Tunnel ──> Probot app (systemd, Node 
                         ┌─────────────────────┼──────────────────────┐
                         v                     v                      v
                   collector.ts          signals.ts             pickers/
-               (GitHub API, metadata)  (pure function)   jev.ts │ rules.ts │ fallback.ts
+               (GitHub API, metadata)  (pure function)  systemone.ts │ rules.ts │ fallback.ts
                                               │
                                               v
                                         captions.ts ──> memegen.link URL
@@ -64,7 +64,7 @@ GitHub ──webhook──> Cloudflare Tunnel ──> Probot app (systemd, Node 
    - created time, in the repo owner's configured time zone
    - author login
 4. `computeSignals(meta)` returns a `Signals` object of named booleans and numbers.
-5. The picker returns `{ templateId, confidence, source }`, where source is `jev` or `rules`.
+5. The picker returns `{ templateId, confidence, source }`, where source is `jev`, `von` or `rules`.
 6. `buildCaption(template, meta, signals)` picks a caption line and fills its slots. It returns the memegen URL and the plain caption text.
 7. The commenter checks the image URL with a HEAD request and a three-second timeout. It then posts either the image comment or a text-only fallback.
 
@@ -119,15 +119,23 @@ The template catalog. Each entry has these fields:
 
 v1 ships about 12 templates. They cover every signal above plus a generic "looks good" fallback template for PRs with no notable signal.
 
-### `pickers/jev.ts`
+### `pickers/systemone.ts`
 
-Sends one request to `POST https://api.typesafe.ai/v1/systemone` with model `jev-latest`. The state is the PR metadata and signals. It asks one `choice` question. The criteria are every template's description plus an `other` option.
+One picker class for any server that speaks TypeSafe's System One API. Jev and Von both do, so the same code serves both. It is constructed with a name, a base URL, an optional API key, a model name and a timeout.
 
-- Timeout: two seconds.
+It sends one request to `POST {baseUrl}/v1/systemone`. The state is the PR metadata and signals. It asks one `choice` question. The criteria are every template's description plus an `other` option.
+
 - It returns `null` on any HTTP error, on a timeout, when the choice is `other`, or when confidence is under 0.5.
-- The API key comes from `TYPESAFE_API_KEY`. The picker is disabled when the key is missing.
+- When an API key is set, it is sent as `Authorization: Bearer <key>`.
 
-It calls the HTTP API directly with `fetch`, not the SDK. That keeps the dependency list short and makes the request easy to record for tests. The 2026-09-26 test call confirmed this request shape.
+It calls the HTTP API directly with `fetch`, not an SDK. That keeps the dependency list short and makes the request easy to record for tests. The 2026-09-26 test call against Jev confirmed this request shape.
+
+`index.ts` builds two instances from config:
+
+| Name | Base URL | Model | Key | Timeout | Enabled when |
+|---|---|---|---|---|---|
+| `jev` | `https://api.typesafe.ai` | `jev-latest` | `TYPESAFE_API_KEY` | 2 s | the key is set |
+| `von` | `VON_BASE_URL` | `VON_MODEL` | none | `VON_TIMEOUT_MS` | the URL is set |
 
 ### `pickers/rules.ts`
 
@@ -135,7 +143,7 @@ Evaluates each template's rule against the signals. It returns the matching temp
 
 ### `pickers/fallback.ts`
 
-Wraps a list of pickers and returns the first non-null result. The configured order is `jev,rules` or just `rules`. Errors thrown by a picker are logged and treated as `null`.
+Wraps a list of pickers and returns the first non-null result. The order comes from `PICKERS`, for example `jev,von,rules`. Unknown or disabled pickers are skipped with a warning at startup. Errors thrown by a picker are logged and treated as `null`.
 
 ### `captions.ts`
 
@@ -187,7 +195,10 @@ All settings come from environment variables in a git-ignored `.env` file.
 | `PRIVATE_KEY_PATH` | yes | path to the app's private key file |
 | `WEBHOOK_SECRET` | yes | webhook secret |
 | `TYPESAFE_API_KEY` | no | enables the Jev picker |
-| `PICKERS` | no | picker order, default `jev,rules` |
+| `PICKERS` | no | picker order, default `jev,von,rules` |
+| `VON_BASE_URL` | no | enables the Von picker, for example `http://localhost:8000` |
+| `VON_MODEL` | no | model name sent to Von, default `von-latest` |
+| `VON_TIMEOUT_MS` | no | default `5000`, since Pi CPU speed is unmeasured |
 | `TIMEZONE` | no | used for time signals, default `Europe/Zurich` |
 | `PORT` | no | default `3000` |
 
@@ -201,8 +212,8 @@ GitHub App permissions:
 
 | Failure | Behavior |
 |---|---|
-| Jev timeout, 401, 422, 429, 529 or network error | Log a warning, fall back to rules |
-| Jev picks `other` or confidence under 0.5 | Fall back to rules |
+| Jev or Von timeout, 401, 422, 429, 529 or network error | Log a warning, try the next picker |
+| Jev or Von picks `other` or confidence under 0.5 | Try the next picker |
 | memegen.link does not respond | Post the text-only comment |
 | GitHub API error while collecting | Probot retries. If it still fails, log and skip the PR |
 | GitHub API error while commenting | Same as above |
@@ -214,25 +225,36 @@ Logs use Probot's built-in logger, pino, to stdout, which systemd's journal capt
 
 - Test runner: Vitest.
 - `signals.ts`, `rules.ts` and `captions.ts` get table-driven unit tests. Captions tests cover every escape rule.
-- `jev.ts` is tested with recorded responses served by a fake `fetch`. The tests cover success, low confidence, `other`, timeout and each error status.
+- `systemone.ts` is tested with recorded responses served by a fake `fetch`. The tests cover success, low confidence, `other`, timeout and each error status.
 - `fallback.ts` is tested with stub pickers.
 - The handler is tested with a Probot test instance, a fixture `pull_request.opened` payload and nock for GitHub and memegen. It checks that exactly one comment is posted and that skips work.
 - A test asserts that the collector never calls the contents, files or diff endpoints.
-- `scripts/jev-live-check.ts` sends one real request to Jev. It is run by hand, never in CI.
+- `scripts/systemone-check.ts` sends one real request to Jev or to a local Von server and prints the pick and the time taken. It is run by hand, never in CI. Run on the Pi against Von, it measures real CPU latency, which sets `VON_TIMEOUT_MS`.
 
 ## Deployment
 
 - Node 22 LTS, which runs on any 64-bit Raspberry Pi OS.
 - `npm run build` produces `dist/`.
 - `deploy/gitroast.service` is a systemd unit that runs `node dist/index.js` with `EnvironmentFile=.env` and restarts on failure.
+- `deploy/von.service` runs `von serve --host 127.0.0.1 --port 8000` when Von is used. Binding to localhost keeps it off the network.
 - `cloudflared` runs as its own systemd service. It maps a hostname such as `gitroast.example.com` to `http://localhost:3000`.
 - The README covers creating the GitHub App, setting permissions and the webhook URL, installing it on repos, and setting up the tunnel.
 
-## Future: local model picker
+## Local model picker: Von
 
-Checked on 2026-09-26. The picker interface lets a third picker run fully on the device. Two options:
+Chosen on 2026-09-26 as the open model closest to Jev.
 
-1. An open Jev copy, such as Laya with about 421M parameters and about 1 GB of memory, or Von with about 395M parameters. These appeared within weeks of Jev's release. None has published Raspberry Pi benchmarks, so they need testing on a Pi 4 or Pi 5 with 2 GB or more.
-2. A small sentence-embedding model, such as all-MiniLM-L6-v2 with 22M parameters, run through ONNX Runtime. It compares a text summary of the PR against each template description. A softmax over the similarities gives Jev-like probabilities. This fits in the memory of any Raspberry Pi, including a Pi Zero 2 W.
+**Why Von:**
+- It is built the same way as Jev. It is a non-autoregressive encoder, ModernBERT-Large with 395M parameters, that answers in one pass instead of writing text.
+- It serves the same `/v1/systemone` API with the same choice, yes-or-no and score questions. So the Jev picker code works against it with only a different base URL.
+- It is Apache-2.0 licensed and supports multithreaded CPU inference.
 
-Either becomes `pickers/local.ts` and slots into the `PICKERS` order.
+**Other candidates:**
+- Kev also serves the same API, but its smallest size is 0.8B parameters, a fine-tuned decoder model. That makes it heavier for the same job.
+- Laya is similar in size, but sources disagree on whether it serves the same API.
+
+**Limits to know:**
+- Accuracy is lower than Jev. Von 1.1 scores 72.0% on the jabr v2 benchmark, against 96.6% for Jev. That is why the default order keeps Jev first.
+- It needs about 2 GB of memory for the model and runtime. That rules out a Pi Zero 2 W and 1 or 2 GB boards. A Raspberry Pi 4 or 5 with 4 GB or more is required, and 8 GB is safer.
+- Nobody has published Raspberry Pi latency numbers. The implementation plan must include measuring it on the target Pi before relying on it.
+- The Von server keeps the model in memory while idle. This uses memory, not meaningful CPU or power. It is the one exception to success criterion 5, which applies to the bot process only.
