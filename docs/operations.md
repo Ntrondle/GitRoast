@@ -1,6 +1,6 @@
 # Operations
 
-First-time installation is in the [README](../README.md). This page covers running GitRoast afterwards.
+First-time installation is in the [README](../README.md#install). This page covers running GitRoast afterwards.
 
 ## Services
 
@@ -60,6 +60,14 @@ sudo -H -u gitroast npm run check:systemone -- von
 Each prints one line per sample PR, with the pick, confidence and time. `MISS` on one sample is acceptable. The command fails only if every sample misses.
 
 ## Updating
+
+Run the installer again. It pulls the latest version, rebuilds, restarts the service and keeps your `.env`:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Ntrondle/GitRoast/main/install.sh | bash
+```
+
+To update by hand instead:
 
 ```bash
 cd /opt/gitroast
