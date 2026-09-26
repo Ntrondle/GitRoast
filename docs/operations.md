@@ -24,6 +24,7 @@ journalctl -u gitroast --since today     # today's logs
 | Log line | Meaning |
 |---|---|
 | `GitRoast ready; pickers: jev -> von -> rules` | Started; shows the picker order in effect |
+| `Error: WEBHOOK_SECRET is empty…` | Set `WEBHOOK_SECRET` in `.env`; the bot will not start without it |
 | `picker "von" is unknown or not configured; skipping it` | That picker's setting is missing or misspelled in `PICKERS` |
 | `roasted #42 with mordor (picked by jev)` | Success |
 | `skipping #42: draft` / `bot author` / `no-roast label` / `already roasted` | Intentionally ignored |
@@ -52,8 +53,8 @@ The same messages appear with `von:` for the Von picker.
 
 ```bash
 cd /opt/gitroast
-npm run check:systemone -- jev
-npm run check:systemone -- von
+sudo -H -u gitroast npm run check:systemone -- jev
+sudo -H -u gitroast npm run check:systemone -- von
 ```
 
 Each prints one line per sample PR, with the pick, confidence and time. `MISS` on one sample is acceptable. The command fails only if every sample misses.
@@ -62,9 +63,9 @@ Each prints one line per sample PR, with the pick, confidence and time. `MISS` o
 
 ```bash
 cd /opt/gitroast
-sudo -u gitroast git pull
-sudo -u gitroast npm ci
-sudo -u gitroast npm run build
+sudo -H -u gitroast git pull
+sudo -H -u gitroast npm ci
+sudo -H -u gitroast npm run build
 sudo systemctl restart gitroast
 ```
 

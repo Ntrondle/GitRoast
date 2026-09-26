@@ -1,10 +1,11 @@
 import type { ApplicationFunction } from "probot";
-import { buildPickers, resolveTimeZone } from "./config.js";
+import { assertWebhookSecret, buildPickers, resolveTimeZone } from "./config.js";
 import { createHandler } from "./handler.js";
 import { FallbackPicker } from "./pickers/fallback.js";
 import { templates } from "./templates.js";
 
 const app: ApplicationFunction = (app) => {
+  assertWebhookSecret(process.env);
   const warn = (message: string) => app.log.warn(message);
   const pickers = buildPickers(process.env, warn);
   const handler = createHandler({

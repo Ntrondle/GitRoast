@@ -26,21 +26,36 @@ Images are rendered by [memegen.link](https://memegen.link). If it is down, the 
 
 ## 1. Install
 
+Raspberry Pi OS ships an older Node.js. Install Node 22 from NodeSource, which puts it at `/usr/bin/node` where the service file expects it:
+
 ```bash
-sudo useradd --system --create-home --home-dir /opt/gitroast gitroast
-sudo -u gitroast git clone https://github.com/Ntrondle/GitRoast.git /opt/gitroast
-cd /opt/gitroast
-sudo -u gitroast npm ci
-sudo -u gitroast npm run build
-sudo -u gitroast cp .env.example .env
+curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
+sudo apt-get install -y nodejs git
+node -v   # v22.x or newer
 ```
+
+Create a service user whose home is outside the app folder, so npm's cache stays out of the repository:
+
+```bash
+sudo useradd --system --create-home --home-dir /var/lib/gitroast --shell /usr/sbin/nologin gitroast
+sudo mkdir /opt/gitroast
+sudo chown gitroast: /opt/gitroast
+sudo -H -u gitroast git clone https://github.com/Ntrondle/GitRoast.git /opt/gitroast
+cd /opt/gitroast
+sudo -H -u gitroast npm ci
+sudo -H -u gitroast npm run build
+sudo -H -u gitroast cp .env.example .env
+sudo chmod 600 .env   # it will hold secrets
+```
+
+Edit `.env` with `sudoedit /opt/gitroast/.env`, which keeps its owner and permissions.
 
 ## 2. Create the GitHub App
 
 In GitHub, open **Settings > Developer settings > GitHub Apps > New GitHub App**.
 
 - **Webhook URL:** `https://<your tunnel hostname>/api/github/webhooks`
-- **Webhook secret:** a long random string. Put it in `.env` as `WEBHOOK_SECRET`.
+- **Webhook secret:** a long random string, for example from `openssl rand -hex 32`. Put it in `.env` as `WEBHOOK_SECRET`. The bot refuses to start while it is empty.
 - **Repository permissions:**
   - Metadata: Read-only
   - Pull requests: Read and write
@@ -50,7 +65,12 @@ In GitHub, open **Settings > Developer settings > GitHub Apps > New GitHub App**
 After creating it:
 
 1. Copy the **App ID** into `.env` as `APP_ID`.
-2. Generate a private key, save it as `/opt/gitroast/gitroast.private-key.pem`, and run `chmod 600` on it.
+2. Generate a private key. GitHub downloads a `.pem` file. Copy it to the Pi, then install it so only the service user can read it:
+
+   ```bash
+   sudo install -o gitroast -g gitroast -m 600 ~/gitroast.*.private-key.pem /opt/gitroast/gitroast.private-key.pem
+   ```
+
 3. Install the app on the repositories you want roasted.
 
 ## 3. Configure pickers
@@ -64,7 +84,8 @@ Edit `/opt/gitroast/.env`. See `.env.example` for every setting.
 Check that Jev answers:
 
 ```bash
-npm run check:systemone -- jev
+cd /opt/gitroast
+sudo -H -u gitroast npm run check:systemone -- jev
 ```
 
 ## 4. Run the bot and the tunnel
@@ -75,15 +96,15 @@ sudo systemctl enable --now gitroast
 journalctl -u gitroast -f   # expect "GitRoast ready; pickers: ..."
 ```
 
-Install `cloudflared`, then create a tunnel that points your hostname at the bot:
+Install `cloudflared`, then create a tunnel that points your hostname at the bot. Run these with `sudo`, so the credentials land in `/root/.cloudflared/`, where the system service looks for them:
 
 ```bash
-cloudflared tunnel login
-cloudflared tunnel create gitroast
-cloudflared tunnel route dns gitroast gitroast.example.com
+sudo cloudflared tunnel login        # prints a URL; open it and pick your domain
+sudo cloudflared tunnel create gitroast   # prints the tunnel ID
+sudo cloudflared tunnel route dns gitroast gitroast.example.com
 ```
 
-Create `/etc/cloudflared/config.yml`:
+Create `/etc/cloudflared/config.yml`, replacing `<tunnel-id>` with the ID printed above:
 
 ```yaml
 tunnel: gitroast
@@ -105,9 +126,9 @@ Open a pull request on an installed repo. A meme comment should appear within a 
 Von needs about 2 GB of memory, so use a Pi 4 or 5 with 4 GB or more.
 
 ```bash
-sudo mkdir -p /opt/von && sudo chown gitroast /opt/von
-sudo -u gitroast python3 -m venv /opt/von/.venv
-sudo -u gitroast /opt/von/.venv/bin/pip install von-sdk
+sudo mkdir -p /opt/von && sudo chown gitroast: /opt/von
+sudo -H -u gitroast python3 -m venv /opt/von/.venv
+sudo -H -u gitroast /opt/von/.venv/bin/pip install von-sdk
 sudo cp deploy/von.service /etc/systemd/system/
 sudo systemctl enable --now von
 ```
@@ -115,7 +136,8 @@ sudo systemctl enable --now von
 Measure its speed on your hardware:
 
 ```bash
-npm run check:systemone -- von
+cd /opt/gitroast
+sudo -H -u gitroast npm run check:systemone -- von
 ```
 
 Set `VON_TIMEOUT_MS` in `.env` to about twice the slowest time printed, then restart the bot with `sudo systemctl restart gitroast`.

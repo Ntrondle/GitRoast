@@ -64,3 +64,11 @@ export function resolveTimeZone(env: Env, log: Log): string {
     return "UTC";
   }
 }
+
+// Probot falls back to the publicly known secret "development" when WEBHOOK_SECRET is empty,
+// which would let anyone forge webhooks. Refuse to start instead.
+export function assertWebhookSecret(env: Env): void {
+  if (!env.WEBHOOK_SECRET?.trim()) {
+    throw new Error("WEBHOOK_SECRET is empty; set it to the webhook secret configured on the GitHub App");
+  }
+}

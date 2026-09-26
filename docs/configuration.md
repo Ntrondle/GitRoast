@@ -10,7 +10,7 @@ All settings are environment variables. In production, systemd loads them from `
 |---|---|---|---|
 | `APP_ID` | yes | – | The GitHub App's numeric ID |
 | `PRIVATE_KEY_PATH` | yes | – | Path to the app's private key `.pem` file. Probot also accepts the key inline as `PRIVATE_KEY` |
-| `WEBHOOK_SECRET` | yes | – | Secret GitHub signs webhooks with; unsigned or wrongly signed requests get HTTP 400 |
+| `WEBHOOK_SECRET` | yes | – | Secret GitHub signs webhooks with; unsigned or wrongly signed requests get HTTP 400. The bot refuses to start while it is empty, because Probot would otherwise fall back to the public secret `development` |
 
 ## Pickers
 

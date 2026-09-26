@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { buildPickers, resolveTimeZone } from "../src/config.js";
+import { assertWebhookSecret, buildPickers, resolveTimeZone } from "../src/config.js";
 
 const names = (env: Record<string, string>) => buildPickers(env, vi.fn()).map((p) => p.name);
 
@@ -50,5 +50,19 @@ describe("resolveTimeZone", () => {
     const log = vi.fn();
     expect(resolveTimeZone({ TIMEZONE: "Mars/Olympus" }, log)).toBe("UTC");
     expect(log).toHaveBeenCalledWith('invalid TIMEZONE "Mars/Olympus"; using UTC');
+  });
+});
+
+// Final review: Probot silently falls back to the public secret "development" when WEBHOOK_SECRET is empty.
+describe("assertWebhookSecret", () => {
+  it.each([["missing", {}], ["empty", { WEBHOOK_SECRET: "" }], ["blank", { WEBHOOK_SECRET: "   " }]])(
+    "throws when the secret is %s",
+    (_label, env: Record<string, string>) => {
+      expect(() => assertWebhookSecret(env)).toThrow(/WEBHOOK_SECRET/);
+    },
+  );
+
+  it("accepts a real secret", () => {
+    expect(() => assertWebhookSecret({ WEBHOOK_SECRET: "s3cret" })).not.toThrow();
   });
 });
