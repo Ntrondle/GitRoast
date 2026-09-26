@@ -1,0 +1,18 @@
+[Unit]
+Description=GitRoast GitHub App
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=gitroast
+WorkingDirectory=/opt/gitroast
+EnvironmentFile=/opt/gitroast/.env
+Environment=NODE_ENV=production
+ExecStart=/usr/bin/node node_modules/probot/bin/probot.js run ./dist/index.js
+Restart=on-failure
+RestartSec=5
+MemoryMax=300M
+
+[Install]
+WantedBy=multi-user.target
