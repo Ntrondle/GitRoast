@@ -74,7 +74,7 @@ Each unit lives in its own file under `src/` and is tested on its own.
 
 ### `types.ts`
 
-Shared types: `PrMetadata`, `Signals`, `Template`, `PickResult`, `Picker`.
+Shared types: `PrMetadata`, `Signals`, `BooleanSignal`, `Template`, `PickResult`, `Picker`. `context.ts` holds the Probot `PrContext` type.
 
 ```ts
 interface Picker {
@@ -103,16 +103,18 @@ A pure function. v1 signals:
 | `isFridayEvening` | created Friday after 16:00 |
 | `isLateNight` | created between 00:00 and 05:00 |
 | `wipCommits` | count of commit messages matching wip, fix, oops, again or typo |
+| `hasWipCommits` | `wipCommits` is 3 or more; rules match on booleans only |
 | `deletesMoreThanAdds` | deletions more than twice additions and more than 100 lines |
 | `noDescription` | body empty or under 20 characters |
 | `manyCommits` | more than 20 commits |
 
-### `templates.json`
+### `templates.ts`
 
-The template catalog. Each entry has these fields:
+The template catalog, a typed array, so the type checker validates rule signal names. Each entry has these fields:
 
 - `id`: the memegen.link template ID. The implementation plan must check every ID against `https://api.memegen.link/templates`.
 - `name`
+- `lines`: how many text boxes the memegen template has
 - `description`: what situation fits the template. Jev reads this as the choice criteria.
 - `rule`: a condition on signals, with a priority. The rule picker uses it.
 - `captions`: a list of caption lines. Each line has one text per meme box, for example top and bottom, and may contain slots such as `{files}`, `{lines}`, `{title}`, `{author}` and `{commits}`.
