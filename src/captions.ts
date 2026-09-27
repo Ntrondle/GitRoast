@@ -1,3 +1,4 @@
+import { chooseIndex } from "./choose.js";
 import type { PrMetadata, Signals, Template } from "./types.js";
 
 export interface Caption {
@@ -64,13 +65,14 @@ export function slotValues(meta: PrMetadata, signals: Signals): Record<string, s
 }
 
 export function buildCaption(template: Template, meta: PrMetadata, signals: Signals): Caption {
-  // Deterministic choice so a redelivered webhook produces the same caption.
-  const chosen = template.captions[meta.number % template.captions.length];
+  // Deterministic choice so a redelivered webhook produces the same caption. Seeded with the template
+  // too, so it doesn't move in lockstep with the rules picker's choice of template.
+  const chosen = template.captions[chooseIndex(`${template.id}:${meta.number}`, template.captions.length)];
   if (!chosen) throw new Error(`template ${template.id} has no captions`);
   const values = slotValues(meta, signals);
   const lines = chosen.map((line) =>
     line.replace(SLOT, (match, key: string) => (key in values ? truncate(values[key] ?? "") : match)),
   );
   const url = `https://api.memegen.link/images/${template.id}/${lines.map(escapeMemegen).join("/")}.png`;
-  return { lines, text: lines.join(" / "), url };
+  return { lines, text: lines.filter((l) => l.trim() !== "").join(" / "), url };
 }

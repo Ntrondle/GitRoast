@@ -29,7 +29,7 @@ GitHub ──webhook──> Cloudflare Tunnel ──> Probot (localhost:3000, /a
 4. **Metadata.** The collector combines the webhook payload with one API call that lists up to 50 commits.
 5. **Signals.** `computeSignals` turns metadata into booleans such as `titleUndersells` or `isFridayEvening`. See [memes.md](memes.md).
 6. **Pick.** Pickers are tried in order until one returns a template. See [Pickers](#pickers).
-7. **Caption.** The template's caption is chosen by PR number, its slots are filled, and the text is escaped into a memegen.link image URL.
+7. **Caption.** One of the template's captions is chosen with a hash of the PR number, its slots are filled, and the text is escaped into a memegen.link image URL.
 8. **Comment.** The bot checks the image URL with a HEAD request. If it answers, the comment shows the image. Otherwise the caption is posted as a quote.
 
 ## Source layout
@@ -42,7 +42,8 @@ GitHub ──webhook──> Cloudflare Tunnel ──> Probot (localhost:3000, /a
 | `src/collector.ts` | Builds `PrMetadata`; the only GitHub reader | GitHub API |
 | `src/commenter.ts` | Duplicate check, image check, comment rendering and posting; the only GitHub writer | GitHub API, memegen.link |
 | `src/signals.ts` | Metadata to signals; pure | – |
-| `src/templates.ts` | The meme catalog; data only | – |
+| `src/templates.ts` | The meme catalog and signal priorities; data only | – |
+| `src/choose.ts` | Deterministic hash-based choice; pure | – |
 | `src/captions.ts` | Slot filling and memegen escaping; pure | – |
 | `src/pickers/systemone.ts` | HTTP picker for any System One server (Jev, Von) | Jev or Von |
 | `src/pickers/rules.ts` | Priority-based picker; never fails | – |
@@ -86,7 +87,7 @@ Jev and Von speak the same System One API, so one class, `SystemOnePicker`, serv
 }
 ```
 
-The rules picker matches each template's `rule.all` list of signals and picks the highest `priority`. If nothing matches, it returns the generic `fry` template. Because it never returns `null`, `config.ts` always appends it, so every PR gets a meme.
+The rules picker matches each template's `rule.all` list of signals and takes the highest `priority`. Several templates share each signal's priority, and it chooses between them with a hash of the PR number. If nothing matches, it chooses one of the generic templates the same way. Because it never returns `null`, `config.ts` always appends it, so every PR gets a meme.
 
 ## Data leaving your machine
 
@@ -103,5 +104,5 @@ File contents and diffs are never requested, so they can't be sent anywhere.
 
 - **Always-on process, not scale-to-zero.** The idle bot uses about 50 MB of memory and no CPU. Tooling that starts it on demand would cost more than it saves.
 - **memegen.link renders images.** The bot builds URLs instead of drawing images, so it stores nothing and needs no image libraries.
-- **Deterministic captions.** The caption index is the PR number modulo the caption count, so a redelivered webhook produces the same text.
+- **Deterministic choices.** Templates and captions are chosen with an FNV-1a hash of the PR number (`src/choose.ts`), so a redelivered webhook produces the same meme, while neighbouring PRs still get different ones.
 - **No SDKs for pickers.** Pickers use built-in `fetch`. The only runtime dependency is `probot`.

@@ -16,9 +16,9 @@ npm run build       # compiles src/ to dist/
 | File | Covers |
 |---|---|
 | `test/signals.test.ts` | Every signal, time zones, an empty PR |
-| `test/templates.test.ts` | Catalog integrity: unique IDs, one generic template, caption lengths, known slots, every signal covered |
+| `test/templates.test.ts` | Catalog integrity: unique IDs and descriptions, generic templates, caption lengths, known slots, one priority per signal, every signal covered by at least two templates |
 | `test/captions.test.ts` | memegen escaping, slot filling, truncation, deterministic caption choice |
-| `test/pickers/rules.test.ts` | Signal-to-template mapping and priorities |
+| `test/pickers/rules.test.ts` | Priorities, rotation between templates on the same signal, and that every template can be reached |
 | `test/pickers/systemone.test.ts` | Request shape, confidence threshold, `other`, unknown IDs, malformed bodies, HTTP errors, timeouts; uses a fake `fetch` |
 | `test/pickers/fallback.test.ts` | Picker ordering and error isolation |
 | `test/commenter.test.ts` | Comment rendering, mention defusing, image check |
@@ -32,9 +32,9 @@ Test data builders live in `test/fixtures.ts`. `makeMeta()` is a plain Tuesday-m
 ## Adding a meme template
 
 1. Pick a template ID from `https://api.memegen.link/templates` and note its `lines` count.
-2. Add an entry to `src/templates.ts` with `id`, `name`, `lines`, a `description` written for Jev and Von, a `rule`, and at least one caption with exactly `lines` entries.
+2. Add an entry to `src/templates.ts` with `id`, `name`, `lines`, a `description` written for Jev and Von, a `rule` made with `on("signalName")` or `generic`, and at least one caption with exactly `lines` entries. Use `""` for a text box that should stay empty.
 3. Run `npm test`. The catalog tests catch wrong caption lengths, unknown slots and unknown signal names.
-4. Add a row to the rules test in `test/pickers/rules.test.ts` if the template is the top match for a signal.
+4. Check the ID and text box count against `https://api.memegen.link/templates/<id>`. The tests can't, because they run offline.
 5. Update the table in [memes.md](memes.md).
 
 The `description` is what Jev and Von use to choose, so describe the situation the meme fits, not the image.
@@ -45,7 +45,7 @@ The `description` is what Jev and Von use to choose, so describe the situation t
 2. Compute it in `src/signals.ts`.
 3. Add it, set to its "off" value, to `makeSignals()` in `test/fixtures.ts`.
 4. Add a case to `test/signals.test.ts`.
-5. Give at least one template a rule using it. The catalog test fails until a template does.
+5. Give it a priority in `PRIORITY` in `src/templates.ts`, and at least two templates using `on("yourSignal")`. The catalog test fails until it has two.
 
 ## Adding a picker
 
