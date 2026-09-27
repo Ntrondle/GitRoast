@@ -135,7 +135,9 @@ sudo cp deploy/von.service /etc/systemd/system/
 sudo systemctl enable --now von
 ```
 
-Measure its speed on your hardware:
+On first start, Von downloads about 2 GB of model weights. This can take a long time on Wi-Fi or a slow SD card, and uses little CPU because it waits on the network and disk, not the processor. Follow it with `journalctl -u von -f`. Until the download finishes, Von requests fail and the rules picker answers instead, so PRs still get memes.
+
+Once Von answers, measure its speed on your hardware:
 
 ```bash
 cd /opt/gitroast
