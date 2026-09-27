@@ -44,8 +44,8 @@ The same messages appear with `von:` for the Von picker.
 | No comment appears | GitHub App settings, **Advanced** tab: are deliveries reaching the tunnel? A 502 means the bot is down; a 400 means `WEBHOOK_SECRET` differs from GitHub's |
 | Deliveries succeed, still no comment | `journalctl -u gitroast`: was the PR skipped as a draft, bot, `no-roast` or already roasted? Is the app installed on that repository? |
 | `HttpError: Resource not accessible by integration` | The app lacks Pull requests or Issues write permission, or the new permission was not accepted on the installation |
-| Text quote instead of an image | memegen.link did not answer the HEAD check within 3 seconds. The next PR will try again |
-| Always "picked by rules" | Look for `jev:` or `von:` warnings. No warnings means the picker is not configured; see the startup line |
+| Text quote instead of an image | memegen.link did not answer the HEAD check within 3 seconds. It draws each new caption on first request, and a busy connection on the Pi, such as Von's first download, makes this slower. Time it from the Pi with `curl -s -o /dev/null -w '%{time_total}\n' https://api.memegen.link/images/bihw/test.png`. The next PR will try again |
+| Always "picked by rules" | Look for `jev:` or `von:` warnings. No warnings means the picker is not configured; see the startup line. On a Pi, `von: request failed` usually means Von took longer than `VON_TIMEOUT_MS`; measure it with [the picker check](#checking-the-pickers) and raise the timeout |
 | Friday or late-night memes at the wrong hours | Set `TIMEZONE` to your IANA zone, such as `America/New_York` |
 | A second meme after reopening | Should not happen. The duplicate check only counts bot comments containing `<!-- gitroast -->`; check whether that comment was edited or deleted |
 
