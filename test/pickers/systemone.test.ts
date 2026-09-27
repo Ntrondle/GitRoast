@@ -66,12 +66,22 @@ describe("SystemOnePicker", () => {
     expect(JSON.parse(init.body as string).state.pull_request.body).toHaveLength(1000);
   });
 
-  it("returns null for 'other'", async () => {
-    expect(await pick(makePicker(fakeFetch(200, jevAnswer("other", 0.99))).picker)).toBeNull();
+  it("returns null and logs for 'other'", async () => {
+    const { picker, log } = makePicker(fakeFetch(200, jevAnswer("other", 0.99)));
+    expect(await pick(picker)).toBeNull();
+    expect(log).toHaveBeenCalledWith("jev: chose other (confidence 0.99)");
   });
 
-  it("returns null below 0.5 confidence", async () => {
-    expect(await pick(makePicker(fakeFetch(200, jevAnswer("mordor", 0.49))).picker)).toBeNull();
+  it("returns null and logs below 0.5 confidence", async () => {
+    const { picker, log } = makePicker(fakeFetch(200, jevAnswer("mordor", 0.49)));
+    expect(await pick(picker)).toBeNull();
+    expect(log).toHaveBeenCalledWith("jev: chose mordor with confidence 0.49, below 0.5");
+  });
+
+  it("does not log an accepted answer", async () => {
+    const { picker, log } = makePicker(fakeFetch(200, jevAnswer("mordor", 0.89)));
+    await pick(picker);
+    expect(log).not.toHaveBeenCalled();
   });
 
   // Review focus: a 200 response naming a template we don't have must not reach the caption builder.
