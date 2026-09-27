@@ -32,6 +32,8 @@ journalctl -u gitroast --since today     # today's logs
 | `jev: HTTP 429` or `jev: HTTP 529` | Jev is rate-limiting or overloaded; rules took over |
 | `jev: request failed: …` | Network error or timeout; for Von, often the server is down or `VON_TIMEOUT_MS` is too low |
 | `jev: malformed response` / `jev: unknown template "…"` | The model answered with something unusable; the next picker took over |
+| `jev: chose other (confidence 0.8)` | The model found no meme that fits this PR; the next picker took over. Normal for ordinary PRs |
+| `jev: chose fry with confidence 0.42, below 0.5` | The model was unsure, so its answer was dropped; the next picker took over |
 | `no meme picked for #42` | Should not happen, since rules always answers; report it as a bug |
 | `POST /api/github/webhooks 400` | A request without a valid signature; check `WEBHOOK_SECRET` if GitHub deliveries fail |
 
@@ -45,7 +47,7 @@ The same messages appear with `von:` for the Von picker.
 | Deliveries succeed, still no comment | `journalctl -u gitroast`: was the PR skipped as a draft, bot, `no-roast` or already roasted? Is the app installed on that repository? |
 | `HttpError: Resource not accessible by integration` | The app lacks Pull requests or Issues write permission, or the new permission was not accepted on the installation |
 | Text quote instead of an image | memegen.link did not answer the HEAD check within 3 seconds. The next PR will try again |
-| Always "picked by rules" | Look for `jev:` or `von:` warnings. No warnings means the picker is not configured; see the startup line |
+| Always "picked by rules" | Look for `jev:` or `von:` warnings; every dropped answer logs one. No warnings means the picker is not configured; see the startup line |
 | Friday or late-night memes at the wrong hours | Set `TIMEZONE` to your IANA zone, such as `America/New_York` |
 | A second meme after reopening | Should not happen. The duplicate check only counts bot comments containing `<!-- gitroast -->`; check whether that comment was edited or deleted |
 

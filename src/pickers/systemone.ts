@@ -35,6 +35,11 @@ export class SystemOnePicker implements Picker {
   async pick(meta: PrMetadata, signals: Signals, templates: Template[]): Promise<PickResult | null> {
     const { name, baseUrl, apiKey, timeoutMs } = this.opts;
     const log = this.opts.log ?? (() => {});
+    // Every answer that falls through to the next picker says why, so "picked by rules" is never a mystery.
+    const reject = (reason: string): null => {
+      log(`${name}: ${reason}`);
+      return null;
+    };
     const doFetch = this.opts.fetch ?? fetch;
     const headers: Record<string, string> = { "content-type": "application/json" };
     if (apiKey) headers.authorization = `Bearer ${apiKey}`;
@@ -47,28 +52,23 @@ export class SystemOnePicker implements Picker {
         body: JSON.stringify(this.buildRequest(meta, signals, templates)),
         signal: AbortSignal.timeout(timeoutMs),
       });
-      if (!res.ok) {
-        log(`${name}: HTTP ${res.status}`);
-        return null;
-      }
+      if (!res.ok) return reject(`HTTP ${res.status}`);
       data = await res.json();
     } catch (err) {
-      log(`${name}: request failed: ${(err as Error).message}`);
-      return null;
+      return reject(`request failed: ${(err as Error).message}`);
     }
 
     const answer = (data as { answers?: { meme?: { choice?: unknown; confidence?: unknown } } })?.answers?.meme;
     if (typeof answer?.choice !== "string" || typeof answer.confidence !== "number") {
-      log(`${name}: malformed response`);
-      return null;
+      return reject("malformed response");
     }
     const { choice, confidence } = answer as { choice: string; confidence: number };
-    if (choice === "other") return null;
-    if (!templates.some((t) => t.id === choice)) {
-      log(`${name}: unknown template "${choice}"`);
-      return null;
+    const minConfidence = this.opts.minConfidence ?? 0.5;
+    if (choice === "other") return reject(`chose other (confidence ${confidence})`);
+    if (!templates.some((t) => t.id === choice)) return reject(`unknown template "${choice}"`);
+    if (confidence < minConfidence) {
+      return reject(`chose ${choice} with confidence ${confidence}, below ${minConfidence}`);
     }
-    if (confidence < (this.opts.minConfidence ?? 0.5)) return null;
     return { templateId: choice, confidence, source: name };
   }
 }
