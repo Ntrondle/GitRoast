@@ -2,6 +2,12 @@
 
 First-time installation is in the [README](../README.md#install). This page covers running GitRoast afterwards.
 
+The commands below use `sudo`. Minimal systems, such as a fresh Debian image, may not have it. If you are logged in as root there, drop `sudo`, and replace `sudo -H -u gitroast` with `runuser -u gitroast -- env HOME=/var/lib/gitroast`:
+
+```bash
+cd /opt/gitroast && runuser -u gitroast -- env HOME=/var/lib/gitroast npm run check:systemone -- jev
+```
+
 ## Services
 
 | Service | Unit file | Listens on | Needed |
