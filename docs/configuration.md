@@ -38,6 +38,24 @@ Common setups:
 | Fully local model | `VON_BASE_URL=http://127.0.0.1:8000`, `PICKERS=von,rules` |
 | Everything | both set, default `PICKERS` |
 
+### Choosing pickers on a Raspberry Pi
+
+Von runs on the Pi's CPU, so check it before relying on it. On one Raspberry Pi install, `npm run check:systemone -- von` gave:
+
+| Sample | Pick | Confidence | Time |
+|---|---|---|---|
+| Huge PR titled as a typo fix | `yallgot` (expected `mordor`) | 0.43 | 4.2 s |
+| Over-engineered refactor | `gb` | 0.44 | 4.2 s |
+
+The check script accepts any confidence, but the bot drops answers below 0.5. So on that Pi, every Von answer was discarded and rules picked. Real PRs also send more text than the samples, and requests there hit the default 5 second `VON_TIMEOUT_MS`.
+
+If your numbers look like this, Von costs memory and time without changing the meme:
+
+- For better picks, use Jev: set `TYPESAFE_API_KEY`.
+- To stay fully local, use rules only: set `PICKERS=rules` and run `sudo systemctl disable --now von`.
+
+Restart the bot after changing `.env`: `sudo systemctl restart gitroast`.
+
 ## Behavior
 
 | Variable | Required | Default | Meaning |
