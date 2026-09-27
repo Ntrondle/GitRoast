@@ -62,6 +62,8 @@ After creating it:
    sudo install -o gitroast -g gitroast -m 600 ~/YOUR-APP-NAME.*.private-key.pem /opt/gitroast/gitroast.private-key.pem
    ```
 
+   Then delete the downloaded copy on your computer. Anyone with this key can act as the app on every repository it is installed on. If it leaks, revoke it on the app's settings page and generate a new one.
+
 3. Install the app on the repositories you want roasted.
 
 ## 3. Configure pickers
