@@ -2,7 +2,19 @@ import { describe, expect, it } from "vitest";
 import { templates } from "../src/templates.js";
 import { makeSignals } from "./fixtures.js";
 
-const KNOWN_SLOTS = new Set(["files", "lines", "additions", "deletions", "commits", "title", "author"]);
+const KNOWN_SLOTS = new Set([
+  "files",
+  "lines",
+  "additions",
+  "deletions",
+  "commits",
+  "lineCount",
+  "fileCount",
+  "commitCount",
+  "wipCommitCount",
+  "title",
+  "author",
+]);
 
 describe("template catalog", () => {
   it("has unique ids and no id named 'other'", () => {
@@ -27,6 +39,13 @@ describe("template catalog", () => {
       for (const line of t.captions.flat()) {
         for (const [, slot] of line.matchAll(/\{(\w+)\}/g)) expect(KNOWN_SLOTS, `${t.id}: ${slot}`).toContain(slot);
       }
+    }
+  });
+
+  // A bare count slot followed by a noun reads "1 lines" for a one-line PR; use the *Count slots instead.
+  it("never puts a plural noun after a bare count slot", () => {
+    for (const t of templates) {
+      for (const line of t.captions.flat()) expect(line, t.id).not.toMatch(/\{(files|lines|commits)\} (file|line|commit)s\b/);
     }
   });
 

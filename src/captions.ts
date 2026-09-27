@@ -37,13 +37,27 @@ function truncate(value: string): string {
   return value.length > MAX_SLOT_LENGTH ? `${value.slice(0, MAX_SLOT_LENGTH - 1)}…` : value;
 }
 
+function formatNumber(n: number): string {
+  return n.toLocaleString("en-US");
+}
+
+// "1 line", "1,204 lines": captions use these so a one-line PR never reads "1 lines".
+function count(n: number, noun: string): string {
+  return `${formatNumber(n)} ${noun}${n === 1 ? "" : "s"}`;
+}
+
 export function slotValues(meta: PrMetadata, signals: Signals): Record<string, string> {
+  const commits = meta.commitMessages.length;
   return {
-    files: String(meta.changedFiles),
-    lines: String(signals.linesChanged),
-    additions: String(meta.additions),
-    deletions: String(meta.deletions),
-    commits: String(meta.commitMessages.length),
+    files: formatNumber(meta.changedFiles),
+    lines: formatNumber(signals.linesChanged),
+    additions: formatNumber(meta.additions),
+    deletions: formatNumber(meta.deletions),
+    commits: formatNumber(commits),
+    lineCount: count(signals.linesChanged, "line"),
+    fileCount: count(meta.changedFiles, "file"),
+    commitCount: count(commits, "commit"),
+    wipCommitCount: count(signals.wipCommits, "commit"),
     title: meta.title,
     author: meta.author,
   };

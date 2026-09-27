@@ -49,13 +49,19 @@ Captions can contain these placeholders:
 
 | Slot | Value |
 |---|---|
-| `{files}` | changed file count |
+| `{files}` | changed file count, such as `1,204` |
 | `{lines}` | additions plus deletions |
 | `{additions}` | added lines |
 | `{deletions}` | deleted lines |
 | `{commits}` | number of commits fetched, up to 50 |
+| `{lineCount}` | `{lines}` with its noun: `1 line`, `1,205 lines` |
+| `{fileCount}` | `{files}` with its noun: `1 file`, `47 files` |
+| `{commitCount}` | `{commits}` with its noun |
+| `{wipCommitCount}` | `wipCommits` with its noun |
 | `{title}` | PR title |
 | `{author}` | PR author's login |
+
+Numbers use thousands separators. Write `{lineCount}` rather than `{lines} lines`, so a one-line PR doesn't read "1 lines". A catalog test enforces this.
 
 Slot values longer than 60 characters are cut and end with `…`. An unknown slot is left as literal text.
 

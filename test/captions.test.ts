@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildCaption, escapeMemegen } from "../src/captions.js";
+import { buildCaption, escapeMemegen, slotValues } from "../src/captions.js";
 import type { Template } from "../src/types.js";
 import { makeMeta, makeSignals } from "./fixtures.js";
 
@@ -69,5 +69,19 @@ describe("buildCaption", () => {
   it("leaves unknown slots untouched", () => {
     const t: Template = { ...template, captions: [["{nope}", "ok"]] };
     expect(buildCaption(t, makeMeta(), makeSignals()).lines[0]).toBe("{nope}");
+  });
+});
+
+describe("slotValues", () => {
+  it("adds the noun to counts, singular for one", () => {
+    const one = slotValues(makeMeta({ changedFiles: 1, commitMessages: ["fix"] }), makeSignals({ linesChanged: 1, wipCommits: 1 }));
+    expect([one.lineCount, one.fileCount, one.commitCount, one.wipCommitCount]).toEqual(["1 line", "1 file", "1 commit", "1 commit"]);
+    const many = slotValues(makeMeta({ changedFiles: 3 }), makeSignals({ linesChanged: 0, wipCommits: 4 }));
+    expect([many.lineCount, many.fileCount, many.commitCount, many.wipCommitCount]).toEqual(["0 lines", "3 files", "2 commits", "4 commits"]);
+  });
+
+  it("formats large numbers with thousands separators", () => {
+    const v = slotValues(makeMeta({ changedFiles: 1204, additions: 12000, deletions: 3400 }), makeSignals({ linesChanged: 15400 }));
+    expect([v.lines, v.lineCount, v.fileCount, v.additions, v.deletions]).toEqual(["15,400", "15,400 lines", "1,204 files", "12,000", "3,400"]);
   });
 });
