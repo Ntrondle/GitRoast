@@ -238,6 +238,7 @@ print_github_app_steps() {
   cat <<EOF
 
 ${BOLD}Create the GitHub App${RESET} at https://github.com/settings/apps/new
+  Homepage URL:    any full https:// URL (required by GitHub, not used)
   Webhook URL:     $(webhook_url)
   Webhook secret:  $(get_env WEBHOOK_SECRET)
   Permissions:     Metadata read-only, Pull requests read & write, Issues read & write
