@@ -45,6 +45,7 @@ Edit `.env` with `sudoedit /opt/gitroast/.env`, which keeps its owner and permis
 
 In GitHub, open **Settings > Developer settings > GitHub Apps > New GitHub App**.
 
+- **Homepage URL:** any full URL, for example `https://<your tunnel hostname>` or the GitRoast repo. GitHub requires it but GitRoast does not use it. Include `https://`, or GitHub rejects it.
 - **Webhook URL:** `https://<your tunnel hostname>/api/github/webhooks`
 - **Webhook secret:** a long random string, for example from `openssl rand -hex 32`. Put it in `.env` as `WEBHOOK_SECRET`. The bot refuses to start while it is empty.
 - **Repository permissions:**
