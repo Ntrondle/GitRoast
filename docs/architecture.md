@@ -32,6 +32,37 @@ GitHub ──webhook──> Cloudflare Tunnel ──> Probot (localhost:3000, /a
 7. **Caption.** The template's caption is chosen by PR number, its slots are filled, and the text is escaped into a memegen.link image URL.
 8. **Comment.** The bot checks the image URL with a HEAD request. If it answers, the comment shows the image. Otherwise the caption is posted as a quote.
 
+## Repository layout
+
+| Path | What it is | Used by |
+|---|---|---|
+| `src/` | The bot itself, in TypeScript. See [Source layout](#source-layout) | The running service, after a build |
+| `test/` | Vitest tests, one file per source unit, plus builders in `fixtures.ts`. See [development.md](development.md#tests) | `npm test` |
+| `dist/` | Compiled JavaScript from `npm run build`. Not committed | The `gitroast` service |
+| `install.sh` | One-command installer for Debian, Raspberry Pi OS and Ubuntu | The person installing the bot |
+| `deploy/` | systemd units: `gitroast.service` runs the bot, `von.service` runs the optional local model | The installer, which copies them to `/etc/systemd/system/`, pointing `gitroast.service` at the machine's `node` |
+| `scripts/systemone-check.ts` | Sends one real request to Jev or Von and prints the answer. Run it with `npm run check:systemone -- jev` or `-- von` | You, when a picker is not answering |
+| `scripts/test-install.sh` | Runs `install.sh` in fresh Debian and Ubuntu containers and checks the result. Needs Docker | You, before changing the installer |
+| `.env.example` | Every setting with its default. The installer copies it to `.env` | The installer and manual installs |
+| `docs/` | These documents. `docs/superpowers/` holds the original design spec and implementation plan | Readers |
+
+The unit tests run without network access. The two scripts in `scripts/` touch real services, so they never run in CI.
+
+### What the installer sets up
+
+`install.sh` works in steps, and running it again skips what is already done:
+
+1. Checks the OS, CPU and `sudo`, then installs `curl`, `git`, `openssl` and Node.js 22 if they are missing.
+2. Creates the `gitroast` service user and clones this repository into `/opt/gitroast`. On later runs it fast-forwards the checkout instead.
+3. Runs `npm ci` and `npm run build` as that user.
+4. Creates `/opt/gitroast/.env` from `.env.example` with a generated `WEBHOOK_SECRET` and your time zone. It never overwrites values that are already set.
+5. Sets up Cloudflare Tunnel, unless you pass `--no-tunnel`.
+6. Prints the GitHub App settings, then asks for the App ID, the private key and an optional Jev key. The key is stored as `/opt/gitroast/gitroast.private-key.pem`, readable only by the service user.
+7. Installs Von if you pass `--with-von`.
+8. Installs `gitroast.service`. Once the App ID and private key are set, it starts the service and waits until the bot rejects an unsigned test webhook, which proves it is up and checking signatures.
+
+On the machine, the running bot is `node` running `probot run ./dist/index.js` from `/opt/gitroast`, reading its settings from `.env`. systemd restarts it on failure and caps it at 300 MB of memory.
+
 ## Source layout
 
 | File | Responsibility | Talks to |

@@ -12,7 +12,7 @@ Images are rendered by [memegen.link](https://memegen.link). If it is down, the 
 
 ## Documentation
 
-- [Architecture](docs/architecture.md): how a webhook becomes a meme, pickers, and what data leaves your machine
+- [Architecture](docs/architecture.md): what each folder is for, what the installer sets up, how a webhook becomes a meme, pickers, and what data leaves your machine
 - [Configuration](docs/configuration.md): every environment variable and GitHub App permission
 - [Signals and meme catalog](docs/memes.md): what each signal means and which meme it triggers
 - [Operations](docs/operations.md): logs, troubleshooting, updating and rotating secrets
