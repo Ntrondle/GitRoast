@@ -23,8 +23,28 @@ describe("template catalog", () => {
     expect(ids).not.toContain("other");
   });
 
-  it("has exactly one generic template", () => {
-    expect(templates.filter((t) => t.rule.all.length === 0)).toHaveLength(1);
+  it("has generic templates for PRs with no signal", () => {
+    expect(templates.filter((t) => t.rule.all.length === 0).length).toBeGreaterThanOrEqual(5);
+  });
+
+  it("gives every template the same priority as the others on its signal", () => {
+    const bySignal = new Map<string, Set<number>>();
+    for (const t of templates) {
+      const key = t.rule.all.join("+");
+      bySignal.set(key, (bySignal.get(key) ?? new Set()).add(t.rule.priority));
+    }
+    for (const [signal, priorities] of bySignal) expect([...priorities], signal).toHaveLength(1);
+  });
+
+  it("offers at least two templates for every signal", () => {
+    const counts = new Map<string, number>();
+    for (const t of templates) for (const s of t.rule.all) counts.set(s, (counts.get(s) ?? 0) + 1);
+    for (const [signal, n] of counts) expect(n, signal).toBeGreaterThanOrEqual(2);
+  });
+
+  it("writes a distinct description for every template", () => {
+    const descriptions = templates.map((t) => t.description);
+    expect(new Set(descriptions).size).toBe(descriptions.length);
   });
 
   it("gives every template at least one caption with exactly `lines` entries", () => {

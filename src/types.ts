@@ -25,6 +25,28 @@ export interface Signals {
   deletesMoreThanAdds: boolean;
   noDescription: boolean;
   manyCommits: boolean;
+  isMassive: boolean;
+  isHotfix: boolean;
+  isSecurity: boolean;
+  isWeekend: boolean;
+  isMondayMorning: boolean;
+  isWipTitle: boolean;
+  hasMergeCommits: boolean;
+  isMassRename: boolean;
+  isDependencyBump: boolean;
+  isRelease: boolean;
+  isCi: boolean;
+  titleShouting: boolean;
+  vagueTitle: boolean;
+  longDescription: boolean;
+  isPerformance: boolean;
+  isRename: boolean;
+  isCleanup: boolean;
+  isTests: boolean;
+  isDocs: boolean;
+  singleCommit: boolean;
+  isBugFix: boolean;
+  isFeature: boolean;
 }
 
 export type BooleanSignal = {
@@ -36,7 +58,7 @@ export interface Template {
   name: string;
   lines: number; // number of text boxes the memegen template has
   description: string; // read by Jev / Von as the choice criterion
-  rule: { all: BooleanSignal[]; priority: number }; // empty `all` = generic fallback
+  rule: { all: BooleanSignal[]; priority: number }; // empty `all` = generic; ties are rotated by PR number
   captions: string[][]; // each caption has exactly `lines` strings; may contain {slots}
 }
 

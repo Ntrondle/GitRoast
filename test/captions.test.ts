@@ -47,28 +47,40 @@ describe("escapeMemegen", () => {
 });
 
 describe("buildCaption", () => {
+  const only = (caption: string[]): Template => ({ ...template, captions: [caption] });
+
   it("fills slots and builds the memegen URL", () => {
-    const c = buildCaption(template, makeMeta({ number: 2, changedFiles: 47 }), makeSignals());
+    const c = buildCaption(only(["{files} files", "{files} files everywhere"]), makeMeta({ changedFiles: 47 }), makeSignals());
     expect(c.lines).toEqual(["47 files", "47 files everywhere"]);
     expect(c.text).toBe("47 files / 47 files everywhere");
     expect(c.url).toBe("https://api.memegen.link/images/buzz/47_files/47_files_everywhere.png");
   });
 
-  it("picks the caption deterministically from the PR number", () => {
-    const meta = makeMeta({ number: 3, title: "Add cache" });
-    expect(buildCaption(template, meta, makeSignals()).lines).toEqual(["Add cache", "by octocat"]);
+  it("picks the same caption for the same PR every time", () => {
+    const meta = makeMeta({ number: 3 });
     expect(buildCaption(template, meta, makeSignals())).toEqual(buildCaption(template, meta, makeSignals()));
   });
 
+  it("uses every caption across PR numbers", () => {
+    const seen = new Set<string>();
+    for (let number = 1; number <= 20; number++) seen.add(buildCaption(template, makeMeta({ number, title: "Add cache" }), makeSignals()).text);
+    expect(seen.size).toBe(2);
+  });
+
+  it("leaves blank text boxes out of the text version", () => {
+    const c = buildCaption(only(["", "Nothing to review here"]), makeMeta(), makeSignals());
+    expect(c.text).toBe("Nothing to review here");
+    expect(c.url).toBe("https://api.memegen.link/images/buzz/_/Nothing_to_review_here.png");
+  });
+
   it("truncates long slot values to 60 characters", () => {
-    const c = buildCaption(template, makeMeta({ number: 1, title: "x".repeat(200) }), makeSignals());
+    const c = buildCaption(only(["{title}", "by {author}"]), makeMeta({ title: "x".repeat(200) }), makeSignals());
     expect(c.lines[0]).toHaveLength(60);
     expect(c.lines[0]?.endsWith("…")).toBe(true);
   });
 
   it("leaves unknown slots untouched", () => {
-    const t: Template = { ...template, captions: [["{nope}", "ok"]] };
-    expect(buildCaption(t, makeMeta(), makeSignals()).lines[0]).toBe("{nope}");
+    expect(buildCaption(only(["{nope}", "ok"]), makeMeta(), makeSignals()).lines[0]).toBe("{nope}");
   });
 });
 
